@@ -1,14 +1,11 @@
-from components.particle import Particle
-from components.rts import RTS
-
-import numpy as np
-from collections import abc
 from pickle import dump
 import ctypes
 import platform
 import os
-import sys
+import numpy as np
 
+from components.particle import Particle
+from components.rts import RTS
 
 np.seterr(all='raise')
 
@@ -370,9 +367,7 @@ class Caterpillar:
 
     @property
     def somites_x_positions(self) -> np.array:
-        """
-            return: [s0_x, s1_x, ...]
-        """
+        # return: [s0_x, s1_x, ...]
         return np.array([somite.position[0] for somite in self.__somites])
 
     def set_friction_coeffs(self, coeffs: np.array):
@@ -397,8 +392,7 @@ class Somite(Particle):
     def on_ground(self):
         if self._pos[2] > self.__groud_touch_height * 1.1:
             return False
-        else:
-            return True
+        return True
 
     def update_position(self, dt: float):
         mask = np.ones(3, dtype=np.float32)
@@ -419,7 +413,7 @@ class Somite(Particle):
         self.__mu = self.__alpha * rts_len
 
     def set_alpha(self, has_leg: bool):
-        assert type(has_leg) is bool
+        assert isinstance(has_leg, bool)
         self.__alpha = ALPHAS[int(has_leg)]
 
     def set_friction_coeff(self, coeff: float):

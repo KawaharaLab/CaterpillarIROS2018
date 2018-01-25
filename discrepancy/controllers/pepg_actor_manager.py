@@ -1,12 +1,11 @@
 from itertools import chain
 import numpy as np
 
-from . import config
-from . import pepg
+from . import config, pepg, base_actor
 
 
 class PEPGActorManager:
-    def __init__(self, model_path, actor_class):
+    def __init__(self, actor_class: base_actor.BaseActor):
         self.__actor = actor_class()
         self.__pepg = pepg.SymmetricPEPG(self.__actor.params_num(),
                                          learning_rate=config.params["learning_rate"],

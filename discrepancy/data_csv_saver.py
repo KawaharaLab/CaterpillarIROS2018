@@ -3,9 +3,7 @@ from collections import abc
 
 class DataCSVSaver:
     def __init__(self, file_path: str, columns: abc.Iterable):
-        """
-            columns: ["col1", "col2", ...]
-        """
+        # columns: ["col1", "col2", ...]
         self.__file_path = file_path
         self.__columns = columns
         self.__line_placeholder_str = "{}" + ",{}" * (len(self.__columns) - 1) + "\n"

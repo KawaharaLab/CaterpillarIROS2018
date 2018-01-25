@@ -1,3 +1,7 @@
+import sys
+
+COMMON_ACTOR_NAME = "Actor"
+
 # Settings
 somites = 5
 oscillators = somites - 1
@@ -25,5 +29,13 @@ exec_params = {
 
 def dump_config(dir_path: str):
     with open("{}/config_dump.txt".format(dir_path), 'w') as f:
-        f.write("\n---configs--------------\n")
-        f.write(str(params))
+        print_config(f)
+
+
+def print_config(file=None):
+    if file is None:
+        file = sys.stdout
+    print("==========configs==========", file=file)
+    for k, v in params.items():
+        print("{}: {}".format(k, v), file=file)
+    print("===========================", file=file)
