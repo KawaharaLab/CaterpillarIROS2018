@@ -1,0 +1,7 @@
+*/caterpillar/target/
+
+models/
+logs/
+results/
+
+__pycache__/

@@ -1,0 +1,11 @@
+[package]
+name = "caterpillar"
+version = "0.1.0"
+authors = ["Matthew Ishige <matthewlujp@gmail.com>"]
+
+[dependencies]
+libc = "0.2.0"
+
+[lib]
+name = "caterpillar"
+crate-type = ["dylib"]
