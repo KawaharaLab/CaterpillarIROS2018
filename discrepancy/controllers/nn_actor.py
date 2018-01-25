@@ -1,6 +1,7 @@
-from .config import config
-from .base_actor import BaseActor
 import numpy as np
+
+from . import config
+from . import base_actor
 
 np.seterr(all="raise")
 
@@ -8,35 +9,40 @@ np.seterr(all="raise")
 FEEDBACK_MAX = 1.
 
 
-class NeuralNetworkActor(BaseActor):
+class Actor(base_actor.BaseActor):
     def __str__(self):
         return "SimpleNeuralNetworkActor"
 
     def _build_network(self):
-        """
-            \dot{\phi}_i = \omega + f_i(F) \cos \phi_i
-            Define a function which returns [action_0, action_1, ...]
+        r"""
+        Define neural network for feedback model.
+
+        \dot{\phi}_i = \omega + f_i(F) \cos \phi_i
+        return: [action_0, action_1, ...]
         """
         hidden_layer_num = 10
-        self.new_trainable_variable("w_sin_0", np.zeros((config.params["somites"], hidden_layer_num), dtype=np.float32))
+        self.new_trainable_variable("w_sin_0", np.zeros(
+            (config.somites, hidden_layer_num), dtype=np.float32))
         self.new_trainable_variable("b_sin_0", np.zeros(hidden_layer_num, dtype=np.float32))
-        self.new_trainable_variable("w_sin_1", np.zeros((hidden_layer_num, config.params["oscillators"]), dtype=np.float32))
-        self.new_trainable_variable("b_sin_1", np.zeros(config.params["oscillators"], dtype=np.float32))
+        self.new_trainable_variable("w_sin_1", np.zeros(
+            (hidden_layer_num, config.oscillators), dtype=np.float32))
+        self.new_trainable_variable("b_sin_1", np.zeros(config.oscillators, dtype=np.float32))
 
-        self.new_trainable_variable("w_cos_0", np.zeros((config.params["somites"], hidden_layer_num), dtype=np.float32))
+        self.new_trainable_variable("w_cos_0", np.zeros(
+            (config.somites, hidden_layer_num), dtype=np.float32))
         self.new_trainable_variable("b_cos_0", np.zeros(hidden_layer_num, dtype=np.float32))
-        self.new_trainable_variable("w_cos_1", np.zeros((hidden_layer_num, config.params["oscillators"]), dtype=np.float32))
-        self.new_trainable_variable("b_cos_1", np.zeros(config.params["oscillators"], dtype=np.float32))
+        self.new_trainable_variable("w_cos_1", np.zeros(
+            (hidden_layer_num, config.oscillators), dtype=np.float32))
+        self.new_trainable_variable("b_cos_1", np.zeros(config.oscillators, dtype=np.float32))
 
         def action_infer(state: np.array) -> np.array:
             """
-                state: [f_0, f_1, ..., phi_0, phi_1, ...]
-            """
-            forces = state[:config.params["somites"]]
-            phis = state[config.params["somites"]:]
+            Get state and return feedback.
 
-            # Correction (since somite2 is comparatively smaller than end somites)
-            # forces[config.params["somites"] // 2] *= 4
+            state: [f_0, f_1, ..., phi_0, phi_1, ...]
+            """
+            forces = state[:config.somites]
+            phis = state[config.somites:]
 
             f_sin, f_cos = self._calc_fs(forces)
             return f_sin * np.sin(phis) + f_cos * np.cos(phis)
@@ -45,7 +51,7 @@ class NeuralNetworkActor(BaseActor):
 
     def _calc_fs(self, forces: np.array) -> tuple:
         # return: f_sin, f_cos
-        assert forces.shape == (config.params["somites"],)
+        assert forces.shape == (config.somites,)
 
         def sigmoid(x: np.array) -> np.array:
             return 1. / (1. + np.exp(-x))

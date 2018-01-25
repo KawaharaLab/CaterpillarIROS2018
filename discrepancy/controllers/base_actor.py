@@ -1,9 +1,8 @@
-from fast_rl_algo.trainable_variables import TrainableVariables
-
-import numpy as np
-from itertools import chain, accumulate
+from itertools import accumulate
 import os
+import numpy as np
 
+from controllers.trainable_variables import TrainableVariables
 
 np.seterr(all="raise")
 
@@ -39,20 +38,20 @@ class BaseActor:
 
     def current_params(self) -> list:
         # Returns [np.array(params_0), np.array(params_1), ...]
-        return [self.__trainble_variables.get_variable(v_name) for v_name in self.__trainble_variables.variable_names()]
+        return [self.__trainble_variables.get_variable(v_name)
+                for v_name in self.__trainble_variables.variable_names()]
 
     def set_params(self, params: np.array):
         # params: [params_00, params_01, ..., params_10, ...]
         shapes = self.params_shapes()
         splitted_params = np.split(params, np.cumsum([np.prod(s) for s in shapes])[:-1])
-        reshaped_params = [np.reshape(s_params, shape) for s_params, shape in zip(splitted_params, shapes)]
+        reshaped_params = [np.reshape(s_params, shape)
+                           for s_params, shape in zip(splitted_params, shapes)]
         for v_name, new_value in zip(self.__trainble_variables.variable_names(), reshaped_params):
             self.__trainble_variables.update_variable(v_name, new_value)
 
     def _build_network(self):
-        """
-            Define a function which receives a state vector and returns an action
-        """
+        """Define a function which receives a state vector and returns an action."""
         raise NotImplementedError
 
     def get_action(self, state: np.array) -> np.array:
@@ -60,7 +59,7 @@ class BaseActor:
 
     def save(self, save_file_path, step=None):
         if step is not None:
-            save_file_name = "{}_step{}".format(save_file_name, step)
+            save_file_path = "{}_step{}".format(save_file_path, step)
 
         # Make sure that save_file_path can be created
         dir_ = os.path.dirname(save_file_path)

@@ -13,16 +13,13 @@ class PEPG:
         self.__bound_f = boudn_f
         self.__fin_sigma = fin_sigma
 
-    @property
-    def _mus(self):
+    def mus(self) -> np.array:
         return self.__mus
 
-    @property
-    def _sigmas(self):
+    def sigmas(self) -> np.array:
         return self.__sigmas
 
-    @property
-    def _baseline(self):
+    def baseline(self) -> float:
         return self.__baseline
 
     def is_converged(self):
@@ -54,22 +51,13 @@ class PEPG:
         return self.__params_num
 
     def sample_batch(self, batch_size: int):
-        """
-            return: [batch x params_num]
-        """
+        # return: [batch x params_num]
         self.__current_params = np.random.normal(
             loc=self.__mus, scale=np.square(self.__sigmas), size=(batch_size, self.__params_num))
         self.__current_params = self.__bound_f(self.__current_params)
         return self.__current_params
 
-    def reset_exploration_params(self, params: np.array):
-        """
-            Use this method to set modified samples which fit the params restrictions.
-        """
-        assert params.shape == self.__current_params.shape
-        self.__current_params = params
-
-    def update_params(self, rewards: np.array):
+    def update_params(self, rewards: np.array, sigma_bound=np.inf):
         try:
             assert len(rewards) == self.__current_params.shape[0]
         except AttributeError as e:
@@ -80,22 +68,16 @@ class PEPG:
         S = (np.square(T) - np.square(self.__sigmas)[:, np.newaxis]) / self.__sigmas[:, np.newaxis]
         r = rewards - self.__baseline
         self._update_mus(T @ r)
-        self._update_sigmas(S @ r)
+        self._update_sigmas(S @ r, sigma_bound)
         self._update_baseline(rewards)
 
     def _update_baseline(self, rewards: np.array):
         mean_reward = np.mean(rewards)
         self.__baseline = self.moving_average(self.__baseline, mean_reward, {'gamma': self.__gamma})
 
-    @property
-    def baseline(self) -> float:
-        return self.__baseline
-
     @staticmethod
     def moving_average(average, new_value, params):
-        """
-            Exponential moving average
-        """
+        """Exponential moving average."""
         return params['gamma'] * new_value + (1 - params['gamma']) * average
 
 
@@ -107,23 +89,15 @@ class SymmetricPEPG(PEPG):
 
     def sample_batch(self, batch_size: int):
         """
-            return: [(mus + peturbations_(0)),...,(mus + peturbations_(n-1)),
-                     (mus - peturbations_(0)),...,(mus - peturbations)_(n-1)]
+        Sample several parameters sets.
+
+        return: [
+            (mus + peturbations_(0)),...,(mus + peturbations_(n-1)),
+            (mus - peturbations_(0)),...,(mus - peturbations)_(n-1)
+        ]
         """
         self.__perturbation = np.random.normal(
             loc=0, scale=np.square(self._sigmas), size=(batch_size, self.params_num))
-        return np.concatenate(
-            (self._mus + self.__perturbation, self._mus - self.__perturbation), axis=0)
-
-    def reset_exploration_params(self, params: np.array):
-        """
-            Use this method to set modified samples which fit the params restrictions.
-            params: [batch x params]
-        """
-        assert params.shape[0] == self.__perturbation.shape[0] * 2
-        diffs = params - self._mus[np.newaxis, :]
-        perturbation_p, perturbation_m = np.split(diffs, 2)
-        self.__perturbation = np.minimum(perturbation_p, perturbation_m)
         return np.concatenate(
             (self._mus + self.__perturbation, self._mus - self.__perturbation), axis=0)
 
@@ -132,7 +106,9 @@ class SymmetricPEPG(PEPG):
 
     def update_params(self, rewards: np.array, sigma_bound=np.inf):
         """
-            rewards: [r(mus + peturbations_0),..., r(mus - perturbation_0)]
+        Update parameters based on rewards so that expected reward rise.
+
+        rewards: [r(mus + peturbations_0),..., r(mus - perturbation_0)]
         """
         try:
             assert len(rewards) == self.__perturbation.shape[0] * 2

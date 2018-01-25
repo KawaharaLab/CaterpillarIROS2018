@@ -1,36 +1,31 @@
-from .config import config
-from .pepg import SymmetricPEPG
-from .logger import Logger
-
-import numpy as np
-from importlib import import_module
 from itertools import chain
-import os
+import numpy as np
+
+from . import config
+from . import pepg
 
 
 class PEPGActorManager:
-    def __init__(self, model_path=None, actor_class=None):
-        if actor_class is not None:
-            self.__actor = actor_class()
-        else:
-            actor_module = import_module(config.params["actor_module_name"])
-            self.__actor = getattr(actor_module, config.params["actor_class_name"])()
-
-        self.__pepg = SymmetricPEPG(self.__actor.params_num(),
-                                    learning_rate=config.params["learning_rate"],
-                                    init_sigma=config.params["init_sigma"],
-                                    fin_sigma=config.params["converged_sigma"])
+    def __init__(self, model_path, actor_class):
+        self.__actor = actor_class()
+        self.__pepg = pepg.SymmetricPEPG(self.__actor.params_num(),
+                                         learning_rate=config.params["learning_rate"],
+                                         init_sigma=config.params["init_sigma"],
+                                         fin_sigma=config.params["converged_sigma"])
 
         # Set initialized values in actor network as pepg params
         flatten_params = np.array(
-            list(chain.from_iterable([p.flatten().tolist() for p in self.__actor.current_params()])))
+            list(chain.from_iterable([
+                p.flatten().tolist() for p in self.__actor.current_params()
+            ]))
+        )
         self.__pepg.set_mus(flatten_params)
 
     def predict(self, states, step=None):
         return self.__actor.get_action(states, step=step)
 
     def sample_params(self, batch_size=None):
-        # Sample params from Gaussian distribution
+        """Sample params from Gaussian distribution."""
         if batch_size is None:
             batch_size = config.params["batch_size"]
         return self.__pepg.sample_batch(batch_size)
@@ -48,7 +43,7 @@ class PEPGActorManager:
 
     @property
     def sigmas(self):
-        return self.__pepg._sigmas
+        return self.__pepg.sigmas()
 
     def get_actor(self):
         return self.__actor
