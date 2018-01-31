@@ -91,7 +91,8 @@ def train_caterpillar(save_dir: utils.SaveDir, actor_module_name: str):
     caterpillar = Caterpillar(config.somites, mode="default")
     config.dump_config(save_dir.log_dir())
 
-    distance_log = DataCSVSaver(os.path.join(save_dir.log_dir(), "distance.txt"), ("episode", "reward"))
+    distance_log = DataCSVSaver(os.path.join(save_dir.log_dir(), "distance.txt"), ("episode", "distance"))
+    reward_log = DataCSVSaver(os.path.join(save_dir.log_dir(), "reward.txt"), ("episode", "reward"))
     sigma_log = DataCSVSaver(os.path.join(save_dir.log_dir(), "sigma.txt"), ("episode", "average sigma"))
 
     episode = 0
@@ -113,13 +114,15 @@ def train_caterpillar(save_dir: utils.SaveDir, actor_module_name: str):
             rlm.set_params(rlm.parameters)
             caterpillar.reset()
 
-            exec_steps(config.params["steps"], rlm.get_actor(), caterpillar, [], episode=episode - 1)
+            (accumulated_tension,) = exec_steps(config.params["steps"], rlm.get_actor(), caterpillar, [], episode=episode - 1)
+            reward = caterpillar.moved_distance() - accumulated_tension / config.params["tension_divisor"]
 
             # Save parameter performance
             distance_log.append_data(episode, caterpillar.moved_distance())
             sigma_log.append_data(episode, np.mean(rlm.sigmas))
+            reward_log.append_data(episode, reward)
 
-            announce = "  --- Distance: {}".format(caterpillar.moved_distance())
+            announce = "  --- Distance: {}   Reward: {}".format(caterpillar.moved_distance(), reward)
             print(announce)
 
         except KeyboardInterrupt:
