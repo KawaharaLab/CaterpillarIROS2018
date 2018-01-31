@@ -22,13 +22,14 @@ def observe_and_act(actor: base_actor.BaseActor, caterpillar: Caterpillar, disab
     bias = np.zeros(config.somites)
     bias[disable_list] = broken_value
 
-    frictions = caterpillar.frictions
+    frictions = caterpillar.frictions()
     phis = caterpillar.phis
-    state = np.concatenate([frictions * mask + bias, phis])
+    tensions = caterpillar.tensions()
+    state = np.concatenate([frictions * mask + bias, phis, tensions])
     action = actor.get_action(state)
     caterpillar.feedback_phis(action)
 
-    observation = (frictions, phis)
+    observation = (phis, frictions, tensions)
     return observation, action
 
 
@@ -45,9 +46,11 @@ def run_caterpillar(actor, save_dir: str, steps: int, disable_list=None, broken_
     sim_phases_file = DataCSVSaver(os.path.join(save_dir, "phases.txt"), ["step"] + ["phi_{}".format(i) for i in range(config.oscillators)])
     sim_actions_file = DataCSVSaver(os.path.join(save_dir, "actions.txt"), ["step"] + ["action_{}".format(i) for i in range(config.oscillators)])
     sim_frictions_file = DataCSVSaver(os.path.join(save_dir, "frictions.txt"), ["step"] + ["friction_{}".format(i) for i in range(config.somites)])
+    sim_tension_file = DataCSVSaver(os.path.join(save_dir, "tensions.txt"), ["step"] + ["tension_{}".format(i) for i in range(config.oscillators)])
 
     for step in range(steps):
-        _, action = observe_and_act(actor, caterpillar, disable_list=disable_list, broken_value=broken_value)
+        obv, action = observe_and_act(actor, caterpillar, disable_list=disable_list, broken_value=broken_value)
+        _, frictions, tensions = obv
         caterpillar.step(step, int(1 / config.params["time_dalte"] / 10))
 
         # Save data
@@ -55,8 +58,8 @@ def run_caterpillar(actor, save_dir: str, steps: int, disable_list=None, broken_
         sim_phase_diffs_file.append_data(step, *caterpillar.phases_from_base())
         sim_phases_file.append_data(step, *caterpillar.phis)
         sim_actions_file.append_data(step, *action)
-        frictions = caterpillar.frictions
         sim_frictions_file.append_data(step, *frictions)
+        sim_tension_file.append_data(step, *tensions)
 
     caterpillar.save_simulation("{}/render.sim".format(save_dir))
 
@@ -72,12 +75,12 @@ def reset_dir(dir_path: str):
 
 if __name__ == '__main__':
     parser = OptionParser()
-    parser.add_option("--module", dest="module_name")
-    parser.add_option("--model", dest="model_file_path")
-    parser.add_option("--steps", default=10000, dest="steps", type="int")
-    parser.add_option("--save", default="./run_result", dest="save_dir")
-    parser.add_option("-d", action="append", dest="disable_list", default=[], type=int)
-    parser.add_option("--broken_value", dest="broken_value", default=0, type="float")
+    parser.add_option("--module", dest="module_name", help="Module name of actor model to use.")
+    parser.add_option("--model", dest="model_file_path", help="Path to model file.")
+    parser.add_option("--steps", default=10000, dest="steps", type="int", help="Steps of this run.")
+    parser.add_option("--save", default="./run_result", dest="save_dir", help="Path to save directory.")
+    parser.add_option("-d", action="append", dest="disable_list", default=[], type=int, help="List of sensors to disable.")
+    parser.add_option("--broken_value", dest="broken_value", default=0, type="float", help="Fixed value if sensors are disabled.")
     opts, args = parser.parse_args()
 
     reset_dir(opts.save_dir)

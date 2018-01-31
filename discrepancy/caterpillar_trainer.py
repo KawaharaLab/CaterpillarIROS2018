@@ -165,7 +165,7 @@ def test_current_params(actor: base_actor, log_dir: str, episode: int):
             sim_distance_file.append_data(step, caterpillar.moved_distance())
             sim_phase_diffs_file.append_data(step, *caterpillar.phases_from_base())
             sim_actions_file.append_data(step, *action)
-            frictions = caterpillar.frictions
+            frictions = caterpillar.frictions()
             sim_frictions_file.append_data(step, *frictions)
 
     print("Moved distance:", caterpillar.moved_distance())

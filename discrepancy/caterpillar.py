@@ -6,26 +6,10 @@ import numpy as np
 
 from components.particle import Particle
 from components.rts import RTS
+from controllers import config
 
 np.seterr(all='raise')
-
-
-# Caterpillar model settings
-MASS = .3
-RADIUS = .35
-RTS_NATURAL_LENGTH_MAX = 0.5
-OMGA = np.pi
-RTS_K = 100.
-RTS_C = 1.
-RTS_AMP = .3
-RTS_W = np.pi
-TS_K = 1000.
-FRICTION_APPEAR_LENGTH_RATIO = 0.8
-MU = 1
-PROTEST_P = 0
-EPSILON = .2
-SIGMA = .2
-ALPHAS = [.0, 10.0]
+UNDERFLOW_LIMIT = 1e-10
 
 
 def import_lib():
@@ -36,6 +20,12 @@ def import_lib():
     elif platform.system() == "Linux":
         return ctypes.CDLL(lib_path + ".so")
     return None
+
+
+def limit_underflow(v: float) -> float:
+    if - UNDERFLOW_LIMIT < v < UNDERFLOW_LIMIT:
+        return 0
+    return v
 
 
 class Caterpillar:
@@ -75,11 +65,9 @@ class Caterpillar:
         self.__somites_amount = somites_amount
         self.__caterpillar_name = caterpillar_name
         self.__dim = dim
-        self.__somite_mass = MASS
-        self.__somite_radius = RADIUS
-        self.__rts_max_natural_length = RTS_NATURAL_LENGTH_MAX
-        self.__friction_appear_length_ratio = FRICTION_APPEAR_LENGTH_RATIO
-        self.__mu = MU
+        self.__somite_mass = config.caterpillar_params["somite_mass"]
+        self.__somite_radius = config.caterpillar_params["somite_radius"]
+        self.__rts_max_natural_length = config.caterpillar_params["rts_max_natural_length"]
         self.__simulation_protocol = {'objects': [], 'frames': {}}
         self.__dt = 0.01
         if original_head_pos is not None:
@@ -93,9 +81,9 @@ class Caterpillar:
 
         # Set initial frictions
         self.__frictions = np.array([somite.friction()[0] for somite in self.__somites])
+        self.__tensions = np.array([rts.calc_tension() for rts in self.__rts])
         for somite in self.__somites:
             friction = somite.friction()
-            # somite.add_force(friction)  # For _update_caterpillar method
             somite.set_prev_force(friction)
 
         class CCaterpillarState(ctypes.Structure):
@@ -103,6 +91,7 @@ class Caterpillar:
                 ("somites", Caterpillar.CSOMITE * somites_amount),
                 ("rtses", Caterpillar.CRTS * (somites_amount - 1)),
                 ("frictions", ctypes.c_double * somites_amount),
+                ("tensions", ctypes.c_double * (somites_amount - 1)),
             ]
 
             def __str__(self):
@@ -113,6 +102,8 @@ class Caterpillar:
                     desc += "rts {}: {}\n".format(i, str(rts))
                 for i, friction in enumerate(self.frictions):
                     desc += "friction {}: {}\n".format(i, friction)
+                for i, tension in enumerate(self.tensions):
+                    desc += "tension {}: {}\n".format(i, tension)
                 return desc
 
         self.__ccaterpillar_state_class = CCaterpillarState
@@ -159,53 +150,40 @@ class Caterpillar:
 
     @property
     def phis(self) -> np.array:
-        """
-            Returns: [phi_0, phi_1, phi_2, ...]
-        """
+        # return: [phi_0, phi_1, phi_2, ...]
         return np.array([rts.phase for rts in self.__rts])
 
     @property
     def raw_phis(self) -> np.array:
-        """
-            Returns: [phi_0, phi_1, phi_2, ...]
-        """
+        # return: [phi_0, phi_1, phi_2, ...]
         return np.array([rts.raw_phase for rts in self.__rts])
 
     def phases_sin(self) -> np.array:
-        """
-            Returns: [sin(phi_0), sin(phi_1), sin(phi_2), ...]
-        """
+        # return: [sin(phi_0), sin(phi_1), sin(phi_2), ...]
         return np.sin(np.array([rts.phase for rts in self.__rts]))
 
     def phase_diffs(self) -> np.array:
-        """
-            Returns: [phi_1 - phi_0, phi_2 - phi_1, ...]
-        """
+        # return: [phi_1 - phi_0, phi_2 - phi_1, ...]
         adjacent_phis = zip(self.phis[:-1], self.phis[1:])
         # return np.array(list(map(lambda e: (e[0] - e[1]) % (2 * np.pi), adjacent_phis)))
         return np.array(list(map(lambda e: e[0] - e[1], adjacent_phis)))
 
     def phases_from_base(self) -> np.array:
-        """
-            Returns: [0, phi_1 - phi_0, phi_2 - phi_0, ...]
-        """
+        # return: [0, phi_1 - phi_0, phi_2 - phi_0, ...]
         base_phase = self.raw_phis[0]
         return self.raw_phis - base_phase
 
-    @property
     def frictions(self) -> np.array:
-        return self.__frictions
+        return np.array([limit_underflow(v) for v in self.__frictions])
+
+    def tensions(self) -> np.array:
+        return np.array([limit_underflow(v) for v in self.__tensions])
 
     def moved_distance(self) -> float:
-        """
-            x diff
-        """
         return self.center_mass_position[0] - self.__original_center_mass[0]
 
     def feedback_phis(self, phase_feedbacks):
-        """
-            phase_feedbacks: [rts, leg_rts_vertical]
-        """
+        # phase_feedback: [rts, leg_rts_vertical]
         assert phase_feedbacks.shape[0] == len(self.__rts)
         for rts, phase_d in zip(self.__rts, phase_feedbacks):
             rts.set_phase_d(phase_d)
@@ -244,7 +222,7 @@ class Caterpillar:
         # Add connections
         self.__rts = []
         for i in range(self.__somites_amount - 1):
-            self.__rts.append(RTS(self.__somites[i], self.__somites[i + 1], RTS_NATURAL_LENGTH_MAX, RTS_W, RTS_AMP, RTS_K, RTS_C))
+            self.__rts.append(RTS(self.__somites[i], self.__somites[i + 1], config.caterpillar_params["rts_max_natural_length"], config.caterpillar_params["normal_angular_velocity"], config.caterpillar_params["rts_amp"], config.caterpillar_params["rts_k"], config.caterpillar_params["rts_c"]))
 
     @property
     def somites_amount(self) -> int:
@@ -260,7 +238,13 @@ class Caterpillar:
             *[Caterpillar.CRTS(
                 rts.start_particle.position[0], rts.end_particle.position[0],
                 rts.start_particle.verocity[0], rts.end_particle.verocity[0],
-                rts.raw_phase, rts.natural_length, rts.phase_d, RTS_NATURAL_LENGTH_MAX, RTS_AMP, RTS_K, RTS_C
+                rts.raw_phase,
+                rts.natural_length,
+                rts.phase_d,
+                config.caterpillar_params["rts_max_natural_length"],
+                config.caterpillar_params["rts_amp"],
+                config.caterpillar_params["rts_k"],
+                config.caterpillar_params["rts_c"],
             ) for rts in self.__rts]
         )
 
@@ -268,6 +252,7 @@ class Caterpillar:
         new_csomites = caterpillar_state.somites
         new_crtses = caterpillar_state.rtses
         self.__frictions = np.array(caterpillar_state.frictions)
+        self.__tensions = np.array(caterpillar_state.tensions)
 
         # Set results
         for (sm, csm) in zip(self.__somites, new_csomites):
@@ -278,37 +263,6 @@ class Caterpillar:
         for (rts, crts) in zip(self.__rts, new_crtses):
             rts.set_phase(crts.phase)
             rts.set_natural_length(crts.natural_length)
-
-    def _update_caterpillar(self):
-        # Update somites positions
-        for somite in self.__somites:
-            somite.save_prev()
-            somite.update_position(self.__dt)
-            somite.reset_force()
-
-        # Add friction which depends on rts length
-        self.__somites[0].set_mu(self.__rts[0].length)
-        for i in range(1, self.__somites_amount - 1):
-            self.__somites[i].set_mu(0.5 * (self.__rts[i - 1].length + self.__rts[i].length))
-        self.__somites[-1].set_mu(self.__rts[-1].length)
-
-        # Apply frictions to somites
-        self.__frictions = [somite.friction()[0] for somite in self.__somites]
-        for somite in self.__somites:
-            friction = somite.friction()
-            somite.add_force(friction)
-
-        # Update theta and intra tension
-        for i in range(self.__somites_amount - 1):
-            self.__rts[i].update_theta(self.__dt)
-            self.__rts[i].update_natural_length()
-            self.__rts[i].calc_f()
-            self.__somites[i].add_force(-self.__rts[i].force)
-            self.__somites[i + 1].add_force(self.__rts[i].force)
-
-        for somite in self.__somites:
-            somite.add_force(self.__gravity)
-            somite.update_verocity(self.__dt)
 
     def step(self, frame: int, steps=1):
         cur_frame = []
@@ -325,9 +279,7 @@ class Caterpillar:
         self.__create_caterpillar()
 
     def save_simulation(self, file_path, simulation_proc=None):
-        """
-            If None for simulation_protocol -> own simulation_protocol
-        """
+        # if None for simulation_protocol -> own simulation_protocol
         if simulation_proc is None:
             simulation_proc = self.__simulation_protocol
 
@@ -340,15 +292,15 @@ class Caterpillar:
 
     def merge_simulation(self, caterpillar) -> dict:
         """
-            Return merged tocol
-            Non-destructive
+        Return merged tocol.
 
-            simulation_protocol:
-                "objects": [(r0, (x,y,z), 'somite_0'), (r1, (x,y,z), 'somite_1'), ...],
-                "frames": {
-                    0: [('somite_0', (x,y,z)), ('somite_1', (x,y,z)), ...],
-                    1: ...,
-                }
+        non-destructive
+        simulation_protocol:
+            "objects": [(r0, (x,y,z), 'somite_0'), (r1, (x,y,z), 'somite_1'), ...],
+            "frames": {
+                0: [('somite_0', (x,y,z)), ('somite_1', (x,y,z)), ...],
+                1: ...,
+            }
         """
         assert self.simulation_protocol["frames"].keys() == caterpillar.simulation_protocol["frames"].keys()   # Frames should be same
         new_simulation_proc = {}
@@ -384,7 +336,7 @@ class Somite(Particle):
     def __init__(self, radius: float, pos: np.array, mass: float, ground_touch_height: float):
         super().__init__(radius, pos, mass)
         self.__groud_touch_height = ground_touch_height
-        self.__alpha = ALPHAS[1]   # Whether has leg
+        self.__alpha = config.caterpillar_params["friction_coeff_rate"]   # Whether has leg
         self.__friction_coeff = 1.   # Friction coefficient
         self.__mu = .0
 
@@ -414,7 +366,7 @@ class Somite(Particle):
 
     def set_alpha(self, has_leg: bool):
         assert isinstance(has_leg, bool)
-        self.__alpha = ALPHAS[int(has_leg)]
+        self.__alpha = config.caterpillar_params["friction_coeff_rate"] if has_leg else 0
 
     def set_friction_coeff(self, coeff: float):
         assert isinstance(coeff, float)

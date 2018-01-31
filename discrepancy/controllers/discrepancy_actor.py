@@ -5,17 +5,20 @@ from . import base_actor
 
 
 np.seterr(all="raise")
+DISCREPANCY_COEFF = 0.1
 
 
 class Actor(base_actor.BaseActor):
     def __str__(self):
-        return "LinearActor"
+        return "DiscrepancyActor"
 
     def _build_network(self):
         r"""
         Define linear function for feedback model.
 
-        \dot{\phi}_i = \omega + f_i(F) \cos \phi_i
+        \dot{\phi_i} = \omega + f_i(F) \cos \phi_i - \frac{\partial I}{\partial \phi_i}
+        \frac{\partial I}{\partial} = \alpha k \bar{L} A T \sin \phi_i
+
         return: [action_0, action_1, ...]
         """
         self.new_trainable_variable("w_sin", np.zeros(
@@ -30,12 +33,16 @@ class Actor(base_actor.BaseActor):
             Get state and return feedback.
 
             state: [f_0, f_1, ..., phi_0, phi_1, ..., t_0, t_1, ...]
+            t_i is tension on i th RTS
             """
             forces = state[:config.somites]
             phis = state[config.somites:config.somites + config.oscillators]
+            tensions = state[config.somites + config.oscillators:]
 
             f_sin, f_cos = self._calc_fs(forces)
-            return f_sin * np.sin(phis) + f_cos * np.cos(phis)
+            discrepancy = config.caterpillar_params["rts_k"] * config.caterpillar_params["rts_max_natural_length"] *\
+                config.caterpillar_params["rts_amp"] * tensions * np.sin(phis)
+            return f_sin * np.sin(phis) + f_cos * np.cos(phis) - DISCREPANCY_COEFF * discrepancy
 
         return action_infer
 

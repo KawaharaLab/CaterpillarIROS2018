@@ -6,4 +6,5 @@ from . import trainable_variables
 from . import linear_actor
 from . import nn_actor
 from . import fixed_umedachi_actor
+from . import discrepancy_actor
 from . import utils

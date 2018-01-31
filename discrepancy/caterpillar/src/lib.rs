@@ -70,13 +70,16 @@ impl CRTS {
         self.natural_length = self.max_length * expand_rate;
     }
 
-    fn calculate_force(&self) -> f64 {
+    fn calculate_dumping_force(&self) -> f64 {
+        return - self.dump_coeff * (self.verocity_1 - self.verocity_0);
+    }
+
+    fn calculate_tension(&self) -> f64 {
         let length = (self.position_1 - self.position_0).abs();
-        let mut force = - self.dump_coeff * (self.verocity_1 - self.verocity_0);
-        if length > 0.0001 {
-            force -= self.spring_const * (length - self.natural_length);
+        if length > 0.00001 {
+            return - self.spring_const * (length - self.natural_length);
         }
-        force
+        0.0
     }
 }
 
@@ -84,6 +87,7 @@ impl CRTS {
 pub struct CCaterpillarState {
     somites: [CSomite; SOMITES_AMOUNT],
     rtses: [CRTS; SOMITES_AMOUNT - 1],
+    tensions: [f64; SOMITES_AMOUNT - 1],
     frictions: [f64; SOMITES_AMOUNT],
 }
 
@@ -105,11 +109,6 @@ pub extern fn calculate_force(
     force -= dump_coeff * (v1_x - v0_x);
     force
 }
-
-// #[no_mangle]
-// pub extern fn release_caterpillar_state() {
-//
-// }
 
 #[no_mangle]
 pub extern fn update_caterpillar(somites_ptr: *const CSomite, rts_ptr: *const CRTS, time_delta: f64) -> CCaterpillarState{
@@ -148,14 +147,18 @@ pub extern fn update_caterpillar(somites_ptr: *const CSomite, rts_ptr: *const CR
         frictions[i] = - mu * new_somites[i].verocity * new_somites[i].friction_coeff;
     }
 
+    let mut tensions = [0.0; SOMITES_AMOUNT - 1];
+
     // Update rts
     for i in 0..new_rtses.len() {
         new_rtses[i].update_phase(time_delta);
         new_rtses[i].update_natural_length();
-        let rts_force = new_rtses[i].calculate_force();
+        let rts_dumping_force = new_rtses[i].calculate_dumping_force();
+        let rts_tension = new_rtses[i].calculate_tension();
+        tensions[i] = rts_tension;
         // Apply rtses force on somites
-        forces[i] -= rts_force;
-        forces[i + 1] += rts_force;
+        forces[i] -= rts_tension + rts_dumping_force;
+        forces[i + 1] += rts_tension + rts_dumping_force;
     }
 
     // Update verocities
@@ -172,5 +175,6 @@ pub extern fn update_caterpillar(somites_ptr: *const CSomite, rts_ptr: *const CR
         somites: new_somites,
         rtses: new_rtses,
         frictions: frictions,
+        tensions: tensions,
     }
 }

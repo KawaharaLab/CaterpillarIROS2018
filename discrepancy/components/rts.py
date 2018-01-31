@@ -116,6 +116,13 @@ class RTS:
         )
         self._force = np.array([x_force, 0, 0])
 
+    def calc_tension(self) -> np.array:
+        x_force = self.__cdll.calculate_force(
+            self.__p0.position[0], self.__p1.position[0], self.__p0.verocity[0], self.__p1.verocity[0],
+            self.natural_length, self._k, self._c,
+        )
+        return x_force
+
         # self.reset_force()
         # l = self.length
         # if l > 0.0001:
