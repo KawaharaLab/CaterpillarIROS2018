@@ -5,6 +5,7 @@ from . import base_actor
 
 
 np.seterr(all="raise")
+DISCREPANCY_COEFF = 0.1
 
 
 class Actor(base_actor.BaseActor):
@@ -26,7 +27,6 @@ class Actor(base_actor.BaseActor):
         self.new_trainable_variable("w_cos", np.zeros(
             (config.somites, config.oscillators), dtype=np.float32))
         self.new_trainable_variable("b_cos", np.zeros(config.oscillators, dtype=np.float32))
-        self.new_trainable_variable("discrepancy_coef", np.zeros(1, dtype=np.float32))
 
         def action_infer(state: np.array) -> np.array:
             """
@@ -42,7 +42,7 @@ class Actor(base_actor.BaseActor):
             f_sin, f_cos = self._calc_fs(forces)
             discrepancy = config.caterpillar_params["rts_k"] * config.caterpillar_params["rts_max_natural_length"] *\
                 config.caterpillar_params["rts_amp"] * tensions * np.sin(phis)
-            return f_sin * np.sin(phis) + f_cos * np.cos(phis) - (self.var("discrepancy_coef")[0])**2 * discrepancy
+            return f_sin * np.sin(phis) + f_cos * np.cos(phis) - DISCREPANCY_COEFF * discrepancy
 
         return action_infer
 
