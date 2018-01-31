@@ -5,6 +5,15 @@ from . import base_actor
 
 
 np.seterr(all="raise")
+DISCREPANCY_COEF_MAX = 1.0
+
+
+def tanh(x: np.array) -> np.array:
+    return (1. - np.exp(-2 * x)) / (1. + np.exp(-2 * x))
+
+
+def sigmoid(x: np.array) -> np.array:
+    return 1. / (1. + np.exp(-x))
 
 
 class Actor(base_actor.BaseActor):
@@ -42,7 +51,7 @@ class Actor(base_actor.BaseActor):
             f_sin, f_cos = self._calc_fs(forces)
             discrepancy = config.caterpillar_params["rts_k"] * config.caterpillar_params["rts_max_natural_length"] *\
                 config.caterpillar_params["rts_amp"] * tensions * np.sin(phis)
-            return f_sin * np.sin(phis) + f_cos * np.cos(phis) - (self.var("discrepancy_coef")[0])**2 * discrepancy
+            return f_sin * np.sin(phis) + f_cos * np.cos(phis) - self.get_discrep_coef() * discrepancy
 
         return action_infer
 
@@ -55,10 +64,10 @@ class Actor(base_actor.BaseActor):
         f_sin, f_cos = self._calc_fs(forces)
         return np.sqrt(np.power(f_sin, 2) + np.power(f_cos, 2)), np.arctan2(f_cos, -f_sin)
 
-    def get_params(self) -> list:
-        def tanh(x: np.array) -> np.array:
-            return (1. - np.exp(-2 * x)) / (1. + np.exp(-2 * x))
+    def get_discrep_coef(self) -> float:
+        return DISCREPANCY_COEF_MAX * sigmoid(self.var("discrepancy_coef"))
 
+    def get_params(self) -> list:
         sigma = 1. / config.oscillators
         adjust = sigma
         return adjust * tanh(self.var("w_sin")), adjust * tanh(self.var("w_cos")),\
