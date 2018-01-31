@@ -29,10 +29,18 @@ def append_line(file_path: str, line: str):
 
 
 def exec_steps(steps: int, actor: base_actor.BaseActor, caterpillar: Caterpillar,
-               disable_list: list, episode=None):
+               disable_list: list, episode=None) -> float:
+    """
+    Run caterpillar for designated steps.
+
+    return run information which is (accumulated tensions,)
+    """
+    accumulated_tension = 0
     for step in range(steps):
-        caterpillar_runner.observe_and_act(actor, caterpillar, disable_list, episode=episode)
+        (_, _, tensions), _ = caterpillar_runner.observe_and_act(actor, caterpillar, disable_list, episode=episode)
+        accumulated_tension += np.sum(np.power(tensions, 2))
         caterpillar.step(step, int(1 / config.params["time_dalte"] / 10))
+    return (accumulated_tension,)
 
 
 def run_simulation(sim_vals) -> float:
@@ -61,9 +69,9 @@ def run_simulation(sim_vals) -> float:
     caterpillar = Caterpillar(config.somites, mode="default")
 
     # Run steps
-    exec_steps(steps, actor, caterpillar, disable_list=disable_list)
+    (accumulated_tension,) = exec_steps(steps, actor, caterpillar, disable_list=disable_list)
 
-    reward = caterpillar.moved_distance()
+    reward = caterpillar.moved_distance() - accumulated_tension / config.params["tension_divisor"]
     return reward
 
 

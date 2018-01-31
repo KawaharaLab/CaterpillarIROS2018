@@ -11,7 +11,7 @@ oscillators = somites - 1
 params = {
     # About PEPG
     "batch_size": 8,
-    "episodes": 40,
+    "episodes": 100,
     "steps": 2000,
     "time_dalte": 0.01,
     "default_sample_steps": 10000,
@@ -19,6 +19,7 @@ params = {
     "converged_sigma": 0.01,
     "sigma_upper_bound": 2.,
     "learning_rate": 0.1,
+    "tension_divisor": 20000,
 }
 
 caterpillar_params = {
