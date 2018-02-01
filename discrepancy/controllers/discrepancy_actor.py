@@ -35,7 +35,7 @@ class Actor(base_actor.BaseActor):
         self.new_trainable_variable("w_cos", np.zeros(
             (config.somites, config.oscillators), dtype=np.float32))
         self.new_trainable_variable("b_cos", np.zeros(config.oscillators, dtype=np.float32))
-        self.new_trainable_variable("discrepancy_coef", np.zeros(1, dtype=np.float32))
+        self.new_trainable_variable("discrepancy_coef", np.zeros(config.oscillators, dtype=np.float32))
 
         def action_infer(state: np.array) -> np.array:
             """
@@ -49,9 +49,9 @@ class Actor(base_actor.BaseActor):
             tensions = state[config.somites + config.oscillators:]
 
             f_sin, f_cos = self._calc_fs(forces)
-            discrepancy = config.caterpillar_params["rts_k"] * config.caterpillar_params["rts_max_natural_length"] *\
+            discrepancies = config.caterpillar_params["rts_k"] * config.caterpillar_params["rts_max_natural_length"] *\
                 config.caterpillar_params["rts_amp"] * tensions * np.sin(phis)
-            return f_sin * np.sin(phis) + f_cos * np.cos(phis) - self.get_discrep_coef() * discrepancy
+            return f_sin * np.sin(phis) + f_cos * np.cos(phis) - self.get_discrep_coeffs() * discrepancies
 
         return action_infer
 
@@ -64,7 +64,7 @@ class Actor(base_actor.BaseActor):
         f_sin, f_cos = self._calc_fs(forces)
         return np.sqrt(np.power(f_sin, 2) + np.power(f_cos, 2)), np.arctan2(f_cos, -f_sin)
 
-    def get_discrep_coef(self) -> float:
+    def get_discrep_coeffs(self) -> float:
         return DISCREPANCY_COEF_MAX * sigmoid(self.var("discrepancy_coef"))
 
     def get_params(self) -> list:
