@@ -15,10 +15,11 @@ class Actor(base_actor.BaseActor):
             """
             Get state and return feedback.
 
-            state: [f_0, f_1, ..., phi_0, phi_1, ...]
+            state: [f_0, f_1, ..., phi_0, phi_1, ..., t_0, t_1, ...]
+            t_i is tension on i th RTS
             """
             forces = state[:config.somites]
-            phis = state[config.somites:]
+            phis = state[config.somites:config.somites + config.oscillators]
 
             adj_forces = (forces[:-1] + forces[1:]) / 2.
             return - .2 * .5 * .3 * adj_forces * np.sin(phis)
