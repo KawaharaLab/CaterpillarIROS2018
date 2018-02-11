@@ -93,7 +93,7 @@ def mute():
 def train_caterpillar(save_dir: utils.SaveDir, actor_module_name: str):
     # Dump train parameters
     config.print_config()
-    config.dump_config(save_dir.log_dir())
+    config.dump_config(save_dir.log_dir(), {"controller": actor_module_name})
 
     actor_module = import_module(actor_module_name)
     actor_class = getattr(actor_module, config.COMMON_ACTOR_NAME)

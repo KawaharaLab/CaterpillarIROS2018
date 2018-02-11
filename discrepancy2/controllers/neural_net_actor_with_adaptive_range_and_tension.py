@@ -44,6 +44,9 @@ class Actor(base_actor.BaseActor):
             (HIDDEN_LAYER_UNITS, config.oscillators), dtype=np.float64))
         self.new_trainable_variable("b1_cos", np.zeros(config.oscillators, dtype=np.float64))
 
+        self.new_trainable_variable("angle_ranges", np.ones(config.oscillators, dtype=np.float64) * config.caterpillar_params["realtime_tunable_ts_rom"])
+
+
         def action_infer(state: np.array) -> np.array:
             """
             Get state and return feedback.
@@ -56,18 +59,18 @@ class Actor(base_actor.BaseActor):
             tensions = state[config.somites + config.oscillators:]
 
             f_sin, f_cos = self._calc_fs(np.concatenate((forces, tensions)))
-            return f_sin * np.sin(phis) + f_cos * np.cos(phis), np.ones(config.oscillators) * config.caterpillar_params["realtime_tunable_ts_rom"]
+            return f_sin * np.sin(phis) + f_cos * np.cos(phis), limit_angle_range(self.var("angle_ranges"))
 
         return action_infer
 
     def _calc_fs(self, state: np.array) -> tuple:
         assert state.shape == (config.somites * 2 - 2,), "state shape should be {}, got {}".format((config.somites * 2 - 2,), state.shape)
-        f_sin = F_OUTPUT_BOUND * sigmoid(
+        f_sin = sigmoid(
                     np.matmul(sigmoid(
                         np.matmul(state, self.var("w0_sin")) + self.var("b0_sin")
                     ), self.var("w1_sin")) + self.var("b1_sin")
                 )
-        f_cos = F_OUTPUT_BOUND * sigmoid(
+        f_cos = sigmoid(
                     np.matmul(sigmoid(
                         np.matmul(state, self.var("w0_cos")) + self.var("b0_cos")
                     ), self.var("w1_cos")) + self.var("b1_cos")

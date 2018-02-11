@@ -54,9 +54,13 @@ exec_params = {
 }
 
 
-def dump_config(dir_path: str):
+def dump_config(dir_path: str, additionals: {}):
     with open("{}/config_dump".format(dir_path), 'w') as f:
         print_config(f)
+
+        print("additional info", file=f)
+        for k, v in additionals.items():
+            print("{}: {}".format(k, v), file=f)
 
 
 def print_config(file=None):
