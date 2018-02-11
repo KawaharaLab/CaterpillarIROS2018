@@ -14,16 +14,16 @@ oscillators = len(oscillators_list)
 params = {
     # About PEPG
     "batch_size": 8,
-    "episodes": 500,
-    "steps": 2000,
+    "episodes": 1000,
+    "steps": 10000,
     "time_delta": 0.01,
     "default_sample_steps": 10000,
     "init_sigma": 2.,
-    "parameter_upper_bound": 10.,
+    "parameter_upper_bound": 10,
     "parameter_lower_bound": -10.,
     "sigma_upper_bound": 10.,
-    "mu_learning_rate": 0.2,
-    "sigma_learning_rate": 0.05,
+    "mu_learning_rate": 0.1,
+    "sigma_learning_rate": 0.005,
     "baseline_moving_average_gamma": 0.01,
     "tension_divisor": 8000,
 }
@@ -36,8 +36,8 @@ caterpillar_params = {
     "sp_k": 80.0,
     "dp_c": 10.0,
     "horizon_ts_k": 0.,
-    "vertical_ts_k": 80.,
-    "realtime_tunable_ts_rom": np.pi * 1. / 3.,
+    "vertical_ts_k": 20.,
+    "realtime_tunable_ts_rom": np.pi * 1. / 2.,
     "static_friction_coeff": 1.0,
     "dynamic_friction_coeff": 0.1,
     "viscosity_friction_coeff": 10.0,
@@ -49,7 +49,7 @@ caterpillar_params = {
 
 # Execution params such number of processes
 exec_params = {
-    "worker_processes": 8,
+    "worker_processes": 16,
     "save_params": True,
 }
 
@@ -63,6 +63,8 @@ def print_config(file=None):
     if file is None:
         file = sys.stdout
     print("==========configs==========", file=file)
+    print("{} smoites".format(somites), file=file)
+    print("oscillators on somite {}".format(oscillators_list), file=file)
     for k, v in params.items():
         print("{}: {}".format(k, v), file=file)
     print("==========caterpillar config=================", file=file)

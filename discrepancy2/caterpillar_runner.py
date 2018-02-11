@@ -45,25 +45,29 @@ def run_caterpillar(actor, save_dir: str, steps: int, disable_list=None, broken_
     sim_phases_file = DataCSVSaver(os.path.join(save_dir, "phases.txt"), ["step"] + ["phi_{}".format(i) for i in range(config.oscillators)])
     sim_actions_file = DataCSVSaver(os.path.join(save_dir, "actions.txt"), ["step"] + ["action_{}".format(i) for i in range(config.oscillators)])
     sim_frictions_file = DataCSVSaver(os.path.join(save_dir, "frictions.txt"), ["step"] + ["friction_{}".format(i) for i in range(config.somites)])
-    sim_tension_file = DataCSVSaver(os.path.join(save_dir, "tensions.txt"), ["step"] + ["tension_{}".format(i) for i in range(config.somites - 1)])
+    sim_tension_file = DataCSVSaver(os.path.join(save_dir, "tensions.txt"), ["step"] + ["tension_{}".format(i) for i in range(config.somites - 2)])
+    sim_angle_range_file = DataCSVSaver(os.path.join(save_dir, "angle_ranges.txt"), ["step"] + ["phi_{}".format(i) for i in range(config.oscillators)])
 
-    locomotion_distance = utils.locomotion_distance_logger(caterpillar.head_position()[0]) # closure to keep locomotion distance
+    locomotion_distance = utils.locomotion_distance_logger(caterpillar) # closure to keep locomotion distance
     for step in range(steps):
         obv, action = observe_and_act(actor, caterpillar, disable_list=disable_list, broken_value=broken_value)
-        caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(action))
+        feedbacks, angle_ranges = action[0], action[1]
+        caterpillar.set_oscillation_ranges(tuple(angle_ranges))
+        caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(feedbacks))
 
         # Save data
         phases, frictions, tensions = obv
-        sim_distance_file.append_data(step, locomotion_distance(caterpillar.head_position()[0]))
+        sim_distance_file.append_data(step, locomotion_distance(caterpillar))
         sim_phase_diffs_file.append_data(step, *utils.phase_diffs(phases))
         sim_phases_file.append_data(step, *phases)
         sim_frictions_file.append_data(step, *frictions)
         sim_tension_file.append_data(step, *tensions)
-        sim_actions_file.append_data(step, *action)
+        sim_actions_file.append_data(step, *action[0])
+        sim_angle_range_file.append_data(step, *action[1])
 
     caterpillar.save_simulation("{}/render.json".format(save_dir))
 
-    return locomotion_distance(caterpillar.head_position()[0])
+    return locomotion_distance(caterpillar)
 
 
 # Delete directory and recreate

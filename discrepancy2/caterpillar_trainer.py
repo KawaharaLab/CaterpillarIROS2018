@@ -40,7 +40,10 @@ def exec_steps(steps: int, actor: base_actor.BaseActor, caterpillar: Caterpillar
     for step in range(steps):
         (_, _, tensions), action = caterpillar_runner.observe_and_act(actor, caterpillar, disable_list, episode=episode)
         accumulated_tension += np.sum(np.power(tensions, 2))
-        caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(action))
+
+        feedbacks, angle_ranges = action[0], action[1]
+        caterpillar.set_oscillation_ranges(tuple(angle_ranges))
+        caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(feedbacks))
     return (accumulated_tension,)
 
 
@@ -68,15 +71,13 @@ def run_simulation(sim_vals) -> float:
 
     # Init caterpillar
     caterpillar = Caterpillar(config.somites, config.oscillators_list, config.caterpillar_params)
-    # locomotion_distance = utils.locomotion_distance_logger(caterpillar.head_position()[0])
-    locomotion_distance = utils.locomotion_distance_logger(caterpillar.center_of_mass()[0])
+    locomotion_distance = utils.locomotion_distance_logger(caterpillar)
 
     # Run steps
     (accumulated_tension,) = exec_steps(steps, actor, caterpillar, disable_list=disable_list)
 
     # reward = locomotion_distance(caterpillar.center_of_mass()[0]) - accumulated_tension / config.params["tension_divisor"]
-    # reward = locomotion_distance(caterpillar.head_position()[0])
-    reward = locomotion_distance(caterpillar.center_of_mass()[0])
+    reward = locomotion_distance(caterpillar)
     return reward
 
 
@@ -122,28 +123,36 @@ def train_caterpillar(save_dir: utils.SaveDir, actor_module_name: str):
                 rewards = pool.map(run_simulation, [(config.params["steps"], actor_module_name, p_set, []) for p_set in params_sets])
 
             sample_num = epsilons.shape[1]
-            pepg.update_parameters(epsilons, np.array(rewards[:sample_num]), np.array(rewards[sample_num:]))
-            episode += 1
+            r_plus = np.array(rewards[:sample_num])
+            r_minus = np.array(rewards[sample_num:])
+            nan_samples = np.where(np.isnan(r_plus) + np.isnan(r_minus))[0]
+            # delete nan samples
+            epsilons = np.delete(epsilons, nan_samples, axis=1)
+            r_plus = np.delete(r_plus, nan_samples, axis=0)
+            r_minus = np.delete(r_minus, nan_samples, axis=0)
+            if epsilons.shape[1] > 0:
+                pepg.update_parameters(epsilons, r_plus, r_minus)
+                episode += 1
 
-            # Try parameters after this episode --------------------------------------
-            actor.set_params(pepg.get_parameters())
-            caterpillar = Caterpillar(config.somites, config.oscillators_list, config.caterpillar_params)
-            # locomotion_distance = utils.locomotion_distance_logger(caterpillar.head_position()[0])
-            locomotion_distance = utils.locomotion_distance_logger(caterpillar.center_of_mass()[0])
+                # Try parameters after this episode --------------------------------------
+                actor.set_params(pepg.get_parameters())
+                caterpillar = Caterpillar(config.somites, config.oscillators_list, config.caterpillar_params)
+                locomotion_distance = utils.locomotion_distance_logger(caterpillar)
 
-            (accumulated_tension,) = exec_steps(config.params["steps"], actor, caterpillar, [], episode=episode - 1)
-            # d = locomotion_distance(caterpillar.head_position()[0])
-            d = locomotion_distance(caterpillar.center_of_mass()[0])
-            # reward = d - accumulated_tension / config.params["tension_divisor"]
-            reward = d
+                (accumulated_tension,) = exec_steps(config.params["steps"], actor, caterpillar, [], episode=episode - 1)
+                d = locomotion_distance(caterpillar)
+                # reward = d - accumulated_tension / config.params["tension_divisor"]
+                reward = d
 
-            # Save parameter performance
-            distance_log.append_data(episode, d)
-            sigma_log.append_data(episode, np.mean(pepg.get_sigmas()))
-            reward_log.append_data(episode, reward)
+                # Save parameter performance
+                distance_log.append_data(episode, d)
+                sigma_log.append_data(episode, np.mean(pepg.get_sigmas()))
+                reward_log.append_data(episode, reward)
 
-            announce = "  --- Distance: {}   Reward: {}".format(d, reward)
-            print(announce)
+                announce = "  --- Distance: {}   Reward: {}".format(d, reward)
+                print(announce)
+            else:
+                print("got nan position. update failed")
 
         except KeyboardInterrupt:
             command = input("\nSample? Finish? : ")
@@ -185,23 +194,23 @@ def test_current_params(actor: base_actor, log_dir: str, episode: int):
     )
 
     caterpillar = new_caterpillar()
-    # locomotion_distance = utils.locomotion_distance_logger(caterpillar.head_position()[0])
-    locomotion_distance = utils.locomotion_distance_logger(caterpillar.center_of_mass()[0])
+    locomotion_distance = utils.locomotion_distance_logger(caterpillar)
     for step in range(int(steps)):
         try:
             (phases, frictions, _), action = caterpillar_runner.observe_and_act(actor, caterpillar, [])
-            caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(action))
+
+            feedbacks, angle_ranges = action[0], action[1]
+            caterpillar.set_oscillation_ranges(tuple(angle_ranges))
+            caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(feedbacks))
         except Exception as e:
             print("exception occured during sample run,", e)
             continue
         else:
             # Save data
-            # sim_distance_file.append_data(step, locomotion_distance(caterpillar.head_position()[0]))
-            sim_distance_file.append_data(step, locomotion_distance(caterpillar.center_of_mass()[0]))
-            # sim_phase_diffs_file.append_data(step, *caterpillar.phases_from_base())
-            sim_actions_file.append_data(step, *action)
+            sim_distance_file.append_data(step, locomotion_distance(caterpillar))
+            sim_phase_diffs_file.append_data(step, *utils.phase_diffs(phases))
+            sim_actions_file.append_data(step, *action[0])
             sim_frictions_file.append_data(step, *frictions)
 
-    print("Moved distance:", locomotion_distance(caterpillar.head_position()[0]))
-    print("Moved distance:", locomotion_distance(caterpillar.center_of_mass()[0]))
+    print("Moved distance:", locomotion_distance(caterpillar))
     caterpillar.save_simulation("{}/train_result_ep{}.json".format(log_dir, episode))

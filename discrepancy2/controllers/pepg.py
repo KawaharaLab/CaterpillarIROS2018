@@ -1,7 +1,7 @@
 import numpy as np
 from . import config
 np.seterr(divide='raise')   # error on division by zero
-
+EPSILON = 1.0e-5
 
 class Baseline:
     def __init__(self, init_val: float):
@@ -40,6 +40,7 @@ class PEPG:
             "upper": config.params["parameter_upper_bound"],
             "lower": config.params["parameter_lower_bound"],
         }
+        self.__sigma_upper_bound = config.params["sigma_upper_bound"]
 
     def set_parameters(self, new_params: np.array):
         assert self.__mu.shape == new_params.shape,\
@@ -75,7 +76,10 @@ class PEPG:
         self.__mu = np.maximum(self.__mu, self.__parameter_bound["lower"])  # prevent too small
 
         self.__sigma += self.sigma_delta(epsilons, r_plus, r_minus)
+        self.__sigma = np.minimum(self.__sigma, self.__sigma_upper_bound)  # prevent too large sigma
         assert np.all(self.__sigma > 0), "got negative sigma\n{}".format(self.__sigma)
+        print("updated sigma", self.__sigma)
+
         self.__maximum_reward = max(self.__maximum_reward, r_plus.max(), r_minus.max())
         b = self.__baseline.add_new_value((r_plus.mean() + r_minus.mean())/2.)
 
@@ -87,9 +91,7 @@ class PEPG:
         (size: [parameter_number])
         Learning rate scaling is included.
         """
-        # print("mu delta\n{}\ndivided by\n{}".format(r_plus - r_minus, 2*self.__maximum_reward - r_plus - r_minus))
-        # r = (r_plus - r_minus) / (2*selfd.__maximum_reward - r_plus - r_minus)
-        r = (r_plus - r_minus)
+        r = (r_plus - r_minus) / (2 * self.__maximum_reward - r_plus - r_minus)
         return  self.__learning_rate["mu"] * epsilons @ r
 
     def sigma_delta(self, epsilons: np.array, r_plus: np.array, r_minus: np.array) -> np.array:
@@ -100,11 +102,16 @@ class PEPG:
         (size: [parameter_number])
         Learning rate scaling is included.
         """
-        S = (np.square(epsilons) - np.square(self.__sigma[:, np.newaxis])) / self.__sigma[:, np.newaxis]
+        S = (np.square(epsilons) - np.square(self.__sigma[:, np.newaxis])) / np.maximum(self.__sigma[:, np.newaxis], EPSILON)
         r = (r_plus + r_minus) / 2. - self.__baseline.get_value()
-        # if self.__maximum_reward - self.__baseline.get_value() > 0:
-        #     scale = self.__maximum_reward - self.__baseline.get_value()
-        # else:
-        #     scale = 1.
-        scale = 1
-        return self.__learning_rate["sigma"] / scale * S @ r
+        if self.__maximum_reward - self.__baseline.get_value() > 0:
+            scale = self.__maximum_reward - self.__baseline.get_value()
+        else:
+            scale = 1.
+        delta = self.__learning_rate["sigma"] / scale * S @ r
+        if np.any(np.isnan(delta)):
+            with open("./nan_in_sigma_delta", 'w') as f:
+                print("S: {}\nr: {}\nr_+: {}\nr_-:{}\nbase: {}\nS@r: {}\nscale: {}\ndelta: {}".format(
+                S, r, r_plus, r_minus, self.__baseline.get_value(), S@r, scale, delta), file=f)
+        assert not np.any(np.isnan(delta)), "got nan in sigma\n{}".format(delta)
+        return delta

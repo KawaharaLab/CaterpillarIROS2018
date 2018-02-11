@@ -2,6 +2,7 @@ from datetime import datetime
 import shutil
 import os
 import numpy as np
+from caterpillar_lib.caterpillar import Caterpillar
 
 
 def notice(notice_text):
@@ -18,8 +19,17 @@ def reset_dir(path: str):
         shutil.rmtree(path)
     os.makedirs(path)
 
-def locomotion_distance_logger(start_pos: float):
-    return lambda x: x - start_pos
+
+def locomotion_distance_logger(caterpillar: Caterpillar):
+    start_pos = extract_caterpillar_position(caterpillar)
+    return lambda c: extract_caterpillar_position(c) - start_pos
+
+
+def extract_caterpillar_position(caterpillar: Caterpillar):
+    positions = caterpillar.somite_positions()
+    index = int(np.floor(len(positions) / 2))
+    # index = len(positions) - 1
+    return positions[index][0]
 
 
 def phase_diffs(phases: np.array) -> np.array:
