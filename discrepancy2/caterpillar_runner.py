@@ -80,7 +80,7 @@ def reset_dir(dir_path: str):
 if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("--module", dest="module_name", help="Module name of actor model to use.")
-    parser.add_option("--model", dest="model_file_path", help="Path to model file.")
+    parser.add_option("--model", default=None, dest="model_file_path", help="Path to model file.")
     parser.add_option("--steps", default=10000, dest="steps", type="int", help="Steps of this run.")
     parser.add_option("--save", default="./run_result", dest="save_dir", help="Path to save directory.")
     parser.add_option("-d", action="append", dest="disable_list", default=[], type=int, help="List of sensors to disable.")

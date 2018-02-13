@@ -91,13 +91,13 @@ def mute():
 
 # Reinforcement Learning
 def train_caterpillar(save_dir: utils.SaveDir, actor_module_name: str):
-    # Dump train parameters
-    config.print_config()
-    config.dump_config(save_dir.log_dir(), {"controller": actor_module_name})
-
     actor_module = import_module(actor_module_name)
     actor_class = getattr(actor_module, config.COMMON_ACTOR_NAME)
     actor = actor_class()
+
+    # Dump train parameters
+    config.print_config()
+    config.dump_config(save_dir.log_dir(), actor.dump_config())
 
     pepg = PEPG(actor.params_num())
     pepg.set_parameters(

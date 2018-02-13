@@ -7,10 +7,6 @@ F_OUTPUT_BOUND = 1.
 HIDDEN_LAYER_UNITS = 5
 
 
-def simple_bound(x: np.array, lower_bound: float, upper_bound: float) -> float:
-    return np.maximum(np.minimum(x, upper_bound), lower_bound)
-
-
 def sigmoid(x: np.array) -> np.array:
     x = np.clip(x, -500, 500)
     return 1. / (1 + np.exp(-x))
@@ -77,3 +73,11 @@ class Actor(base_actor.BaseActor):
     def get_raw_params(self) -> list:
         return self.var("w0_sin"), self.var("w1_sin"), self.var("w0_cos"), self.var("w1_cos"),\
             self.var("b0_sin"), self.var("b1_sin"), self.var("b0_cos"), self.var("b1_cos")
+
+    @staticmethod
+    def dump_config() -> dict:
+        return {
+            "actor name": "neural network actor with tensions",
+            "F_OUTPUT_BOUND": F_OUTPUT_BOUND,
+            "HIDDEN_LAYER_UNITS": HIDDEN_LAYER_UNITS,
+        }
