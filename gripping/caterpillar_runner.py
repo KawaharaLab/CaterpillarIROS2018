@@ -56,7 +56,7 @@ def run_caterpillar(actor, save_dir: str, steps: int, disable_list=None, broken_
     locomotion_distance = utils.locomotion_distance_logger(caterpillar) # closure to keep locomotion distance
     for step in range(steps):
         obv, action = observe_and_act(actor, caterpillar, disable_list=disable_list, broken_value=broken_value)
-        feedbacks, _, gripping_phase_thresholds = action[0], action[1], action[2]
+        feedbacks, gripping_phase_thresholds = action[0], action[1]
         caterpillar.set_gripping_phase_thresholds(tuple(gripping_phase_thresholds))
         caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(feedbacks[:config.oscillators]), tuple(feedbacks[config.oscillators:]))
 

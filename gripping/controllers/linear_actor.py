@@ -35,12 +35,9 @@ class Actor(base_actor.BaseActor):
             """
             frictions = state[:config.somites]
             phis = state[config.somites:config.somites + config.oscillators + config.grippers]
-            # tensions = state[config.somites + config.oscillators + config.grippers:]
 
             f_sin, f_cos = self._calc_fs(frictions)
-            return f_sin * np.sin(phis) + f_cos * np.cos(phis),\
-                np.ones(config.oscillators) * config.caterpillar_params["realtime_tunable_ts_rom"],\
-                np.ones(config.grippers) * config.caterpillar_params["gripping_phase_threshold"]
+            return f_sin * np.sin(phis) + f_cos * np.cos(phis), np.ones(config.grippers) * config.caterpillar_params["gripping_phase_threshold"]
 
 
         return action_infer

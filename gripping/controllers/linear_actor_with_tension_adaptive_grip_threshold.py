@@ -45,7 +45,6 @@ class Actor(base_actor.BaseActor):
 
             f_sin, f_cos = self._calc_fs(np.concatenate((forces, tensions)))
             return f_sin * np.sin(phis) + f_cos * np.cos(phis),\
-                np.ones(config.oscillators) * config.caterpillar_params["realtime_tunable_ts_rom"],\
                 np.clip(self.var("gripping_phase_threshold") / max(abs(config.params['parameter_upper_bound']), abs(config.params['parameter_lower_bound'])), -1, 1)
                 # tanh(self.var("gripping_phase_threshold") / max(abs(config.params['parameter_upper_bound']), abs(config.params['parameter_lower_bound'])))
 

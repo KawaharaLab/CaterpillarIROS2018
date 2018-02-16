@@ -39,7 +39,6 @@ class Actor(base_actor.BaseActor):
 
             f_sin, f_cos = self._calc_fs(np.concatenate((forces, tensions)))
             return f_sin * np.sin(phis) + f_cos * np.cos(phis),\
-                np.ones(config.oscillators) * config.caterpillar_params["realtime_tunable_ts_rom"],\
                 np.ones(config.grippers) * config.caterpillar_params["gripping_phase_threshold"]
 
 

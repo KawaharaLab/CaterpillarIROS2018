@@ -17,8 +17,8 @@ grippers = len(grippers_list)
 params = {
     # About PEPG
     "batch_size": 8,
-    "episodes": 1000,
-    "steps": 10000,
+    "episodes": 600,
+    "steps": 5000,
     "time_delta": 0.01,
     "default_sample_steps": 10000,
     "init_sigma": 2.,
