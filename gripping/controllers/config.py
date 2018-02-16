@@ -1,3 +1,4 @@
+from datetime import datetime
 import sys
 import numpy as np
 
@@ -24,8 +25,8 @@ params = {
     "parameter_upper_bound": 10,
     "parameter_lower_bound": -10.,
     "sigma_upper_bound": 10.,
-    "mu_learning_rate": 0.2,
-    "sigma_learning_rate": 0.1,
+    "mu_learning_rate": 0.1,
+    "sigma_learning_rate": 0.07,
     "baseline_moving_average_gamma": 0.01,
 }
 
@@ -75,6 +76,7 @@ def print_config(file=None):
     if file is None:
         file = sys.stdout
     print("==========configs==========", file=file)
+    print("timestamp: {}".format(datetime.now()), file=file)
     print("{} smoites".format(somites), file=file)
     print("oscillators on somite {}".format(oscillators_list), file=file)
     print("grippers {}".format(grippers_list), file=file)

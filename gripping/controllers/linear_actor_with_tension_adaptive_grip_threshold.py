@@ -6,9 +6,14 @@ np.seterr(all="raise")
 F_OUTPUT_BOUND = 1.
 
 
+def tanh(x: np.array) -> np.array:
+    x = np.clip(x, -500, 500)
+    return (1 - np.exp(-2.0*x)) / (1 + np.exp(-2.0*x))
+
+
 class Actor(base_actor.BaseActor):
     def __str__(self):
-        return "LinearActorWithTension"
+        return "LinearActor"
 
     def _build_network(self):
         r"""
@@ -25,6 +30,7 @@ class Actor(base_actor.BaseActor):
             (config.somites * 2 - 2, config.oscillators + config.grippers), dtype=np.float64))
         self.new_trainable_variable("b_cos", np.zeros(config.oscillators + config.grippers, dtype=np.float64))
 
+        self.new_trainable_variable("gripping_phase_threshold", np.ones(config.grippers, dtype=np.float64) * config.caterpillar_params["gripping_phase_threshold"])
 
         def action_infer(state: np.array) -> np.array:
             """
@@ -40,8 +46,8 @@ class Actor(base_actor.BaseActor):
             f_sin, f_cos = self._calc_fs(np.concatenate((forces, tensions)))
             return f_sin * np.sin(phis) + f_cos * np.cos(phis),\
                 np.ones(config.oscillators) * config.caterpillar_params["realtime_tunable_ts_rom"],\
-                np.ones(config.grippers) * config.caterpillar_params["gripping_phase_threshold"]
-
+                np.clip(self.var("gripping_phase_threshold") / max(abs(config.params['parameter_upper_bound']), abs(config.params['parameter_lower_bound'])), -1, 1)
+                # tanh(self.var("gripping_phase_threshold") / max(abs(config.params['parameter_upper_bound']), abs(config.params['parameter_lower_bound'])))
 
         return action_infer
 
@@ -57,6 +63,6 @@ class Actor(base_actor.BaseActor):
     @staticmethod
     def dump_config() -> dict:
         return {
-            "actor name": "linear actor with tensions",
+            "actor name": "linear actor with tensions and adaptive grip threshold",
             "F_OUTPUT_BOUND": F_OUTPUT_BOUND,
         }
