@@ -121,9 +121,12 @@ def  train(save_dir_path: str):
     train_log_dir = os.path.join(save_dir_path, "train_log")
     os.makedirs(train_log_dir, exist_ok=True)
 
+    config.dump_config(train_log_dir, {"RL method": "DDPG"})
+
     distance_log = DataCSVSaver(os.path.join(train_log_dir, "distance.txt"), ("episode", "distance"))
 
-    for ep in range(config.params['episodes']):
+    ep = 0
+    while ep < config.params['episodes']:
         try:
             caterpillar = Caterpillar(config.somites, config.oscillators_list, config.grippers_list, config.caterpillar_params)
             locomotion_distance = utils.locomotion_distance_logger(caterpillar)
@@ -150,7 +153,7 @@ def  train(save_dir_path: str):
 
             agent.stop_episode_and_train(obs, reward)
         except FloatingPointError as e:
-            print("got floating point error, {}. Skip".format(e))
+            print("episode {} --- got floating point error, {}. Skip".format(ep, e))
             continue
         except KeyboardInterrupt:
             command = input("\nSample? Finish? : ")
@@ -168,6 +171,8 @@ def  train(save_dir_path: str):
             if command in ["finish", "Finish"]:
                 print("Ending training ...")
                 break
+        else:
+            ep += 1
 
     print('Finished. Saving to {}...'.format(save_dir_path))
     agent.save(save_dir_path)
