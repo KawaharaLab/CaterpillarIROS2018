@@ -34,7 +34,7 @@ def observe(caterpillar: Caterpillar) -> np.array:
     tensions = caterpillar.tensions()
     somite_phases = caterpillar.somite_phases()
     gripper_phases = caterpillar.gripper_phases()
-    return np.concatenate((frictions, tensions, somite_phases, gripper_phases))
+    return np.concatenate((frictions, tensions, np.cos(somite_phases), np.sin(somite_phases), np.cos(gripper_phases), np.sin(gripper_phases))), somite_phases, gripper_phases
 
 
 def run(agent: DDPG, steps: int, save_dir: str) -> float:
@@ -51,18 +51,18 @@ def run(agent: DDPG, steps: int, save_dir: str) -> float:
     caterpillar = Caterpillar(config.somites, config.oscillators_list, config.grippers_list, config.caterpillar_params)
     locomotion_distance = utils.locomotion_distance_logger(caterpillar)
     for step in range(steps):
-        obs = observe(caterpillar)
+        obs, somite_phases, gripper_phases = observe(caterpillar)
         actions = agent.act(obs)
         feedbacks_somite, feedbacks_gripper = actions[:config.oscillators], actions[config.oscillators:]
         caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(feedbacks_somite), tuple(feedbacks_gripper))
 
-        frictions, tensions, somite_phases, gripper_phases = np.split(
+        frictions, tensions, _, _ = np.split(
             obs, [config.somites, config.somites * 2 - 2, config.somites * 2 - 2 + config.oscillators])
         sim_distance_file.append_data(step, locomotion_distance(caterpillar))
-        sim_somite_phase_diffs_file.append_data(step, *utils.phase_diffs(somite_phases))
-        sim_gripper_phase_diffs_file.append_data(step, *utils.phase_diffs(gripper_phases))
-        sim_somite_phases_file.append_data(step, *utils.mod2pi(somite_phases))
-        sim_gripper_phases_file.append_data(step, *utils.mod2pi(gripper_phases))
+        sim_somite_phase_diffs_file.append_data(step, *utils.phase_diffs(np.array(somite_phases)))
+        sim_gripper_phase_diffs_file.append_data(step, *utils.phase_diffs(np.array(gripper_phases)))
+        sim_somite_phases_file.append_data(step, *utils.mod2pi(np.array(somite_phases)))
+        sim_gripper_phases_file.append_data(step, *utils.mod2pi(np.array(gripper_phases)))
         sim_frictions_file.append_data(step, *frictions)
         sim_tension_file.append_data(step, *tensions)
         sim_somite_actions_file.append_data(step, *feedbacks_somite)
@@ -76,9 +76,9 @@ def build_agent() -> DDPG:
     # observation:
     # friction on each somite (#somite)
     # tension on each somite except for both ends (#somite - 2)
-    # somite phases (#somite - 2)
-    # gripper phases (#gripper)
-    obs_size = config.somites + (config.somites - 2) + config.oscillators + config.grippers
+    # cos(somite phases), sin(somites phases) (#oscillator x 2)
+    # cos(gripper phases), sin(gripper phases) (#gripper x 2)
+    obs_size = config.somites + (config.somites - 2) + config.oscillators*2 + config.grippers*2
     # actions: feedbacks to somite oscillators, feedbacks to gripper oscillators
     action_size = config.oscillators + config.grippers
 
@@ -130,7 +130,7 @@ def  train(save_dir_path: str):
         try:
             caterpillar = Caterpillar(config.somites, config.oscillators_list, config.grippers_list, config.caterpillar_params)
             locomotion_distance = utils.locomotion_distance_logger(caterpillar)
-            obs = observe(caterpillar)
+            obs, _, _ = observe(caterpillar)
             position = 0 # current position
             reward = 0
             R = 0  # accumulated reward
@@ -144,7 +144,7 @@ def  train(save_dir_path: str):
                 if np.isnan(reward):
                     print("got invalid reward, {}".format(reward))
                     continue
-                obs = observe(caterpillar)
+                obs, _, _ = observe(caterpillar)
                 R += reward
                 position = position + reward
                 t += 1
