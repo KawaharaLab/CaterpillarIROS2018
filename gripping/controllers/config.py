@@ -5,13 +5,20 @@ import numpy as np
 COMMON_ACTOR_NAME = "Actor"
 
 # Settings
-# somites = 8
-# oscillators_list = (1,2,3,4,5,6,)
 somites = 5
+# somites = 12
+# somites = 32
 oscillators_list = (1,2,3)
+# oscillators_list = tuple(range(1, somites-1))
+# grippers_list = tuple(range(somites))
+# grippers_list = (0,2,3,4,5,8,9)
+# grippers_list = (0,3,4,5,6,8,9,10,11,14,15,16,19,20,22,23,25,26,29,30)
+grippers_list = tuple(range(somites))
+
 oscillators = len(oscillators_list)
-grippers_list = (0,1,2,3,4)
 grippers = len(grippers_list)
+
+fixed_angles = {3: np.pi*1/2}
 
 # Algorith related params (common among actor and critic)
 params = {
@@ -42,7 +49,7 @@ caterpillar_params = {
     "vertical_ts_k0": 4.,
     "vertical_ts_k1": 0.,
     "vertical_ts_c": 1.,
-    "vertical_realtime_tunable_torsion_spirng_k": 9.,
+    "vertical_realtime_tunable_torsion_spirng_k": 12.,
     "realtime_tunable_ts_rom": np.pi * 1. / 3.,
     "static_friction_coeff": 1.0,
     "dynamic_friction_coeff": 0.1,

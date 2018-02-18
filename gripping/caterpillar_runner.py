@@ -57,6 +57,8 @@ def run_caterpillar(actor, save_dir: str, steps: int, disable_list=None, broken_
     for step in range(steps):
         obv, action = observe_and_act(actor, caterpillar, disable_list=disable_list, broken_value=broken_value)
         feedbacks, gripping_phase_thresholds = action[0], action[1]
+        for (oscillator_id, target_angle) in config.fixed_angles.items():
+            caterpillar.set_target_angle(oscillator_id, target_angle)
         caterpillar.set_gripping_phase_thresholds(tuple(gripping_phase_thresholds))
         caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(feedbacks[:config.oscillators]), tuple(feedbacks[config.oscillators:]))
 

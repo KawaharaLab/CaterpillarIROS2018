@@ -40,8 +40,10 @@ def exec_steps(steps: int, actor: base_actor.BaseActor, caterpillar: Caterpillar
     for step in range(steps):
         (_, _, tensions), action = caterpillar_runner.observe_and_act(actor, caterpillar, disable_list, episode=episode)
         accumulated_tension += np.sum(np.power(tensions, 2))
-
         feedbacks, gripping_phase_thresholds = action[0], action[1]
+
+        for (oscillator_id, target_angle) in config.fixed_angles.items():
+            caterpillar.set_target_angle(oscillator_id, target_angle)
         caterpillar.set_gripping_phase_thresholds(tuple(gripping_phase_thresholds))
         caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(feedbacks[:config.oscillators]), tuple(feedbacks[config.oscillators:]))
     return (accumulated_tension,)
@@ -212,8 +214,10 @@ def test_current_params(actor: base_actor, log_dir: str, episode: int):
     for step in range(int(steps)):
         try:
             (phases, frictions, _), action = caterpillar_runner.observe_and_act(actor, caterpillar, [])
-
             feedbacks, gripping_phase_thresholds = action[0], action[1]
+
+            for (oscillator_id, target_angle) in config.fixed_angles.items():
+                caterpillar.set_target_angle(oscillator_id, target_angle)
             caterpillar.set_gripping_phase_thresholds(tuple(gripping_phase_thresholds))
             caterpillar.step_with_feedbacks(config.params["time_delta"], tuple(feedbacks[:config.oscillators]), tuple(feedbacks[config.oscillators:]))
         except KeyboardInterrupt as e:
