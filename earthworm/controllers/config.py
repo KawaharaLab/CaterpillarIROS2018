@@ -5,11 +5,8 @@ import numpy as np
 COMMON_ACTOR_NAME = "Actor"
 
 # Settings
-somites = 5
-# somites = 12
-# somites = 32
-oscillators_list = (1,2,3)
-# oscillators_list = tuple(range(1, somites-1))
+somites = 24
+oscillators_list = tuple(range(somites-1))
 oscillators = len(oscillators_list)
 
 fixed_angles = {}
@@ -40,13 +37,13 @@ earthworm_params = {
     "sp_k": 60.0,
     "dp_c": 10.0,
     "static_friction_coeff": 1.0,
-    "dynamic_friction_coeff": 0.1,
-    "viscosity_friction_coeff": 10.0,
+    "dynamic_friction_coeff": 0.9,
+    "viscosity_friction_coeff": 15.0,
 }
 
 # Execution params such number of processes
 exec_params = {
-    "worker_processes": 8,
+    "worker_processes": 16,
     "save_params": True,
 }
 

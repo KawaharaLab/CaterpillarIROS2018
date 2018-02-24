@@ -45,7 +45,7 @@ def run_earthworm(actor, save_dir: str, steps: int, disable_list=None, broken_va
     sim_somite_phases_file = DataCSVSaver(os.path.join(save_dir, "somite_phases.txt"), ["step"] + ["phi_{}".format(i) for i in range(config.oscillators)])
     sim_somite_actions_file = DataCSVSaver(os.path.join(save_dir, "somite_actions.txt"), ["step"] + ["action_{}".format(i) for i in range(config.oscillators)])
     sim_frictions_file = DataCSVSaver(os.path.join(save_dir, "frictions.txt"), ["step"] + ["friction_{}".format(i) for i in range(config.somites)])
-    sim_tension_file = DataCSVSaver(os.path.join(save_dir, "tensions.txt"), ["step"] + ["tension_{}".format(i) for i in range(config.somites - 2)])
+    sim_tension_file = DataCSVSaver(os.path.join(save_dir, "tensions.txt"), ["step"] + ["tension_{}".format(i) for i in range(config.somites - 1)])
 
     locomotion_distance = utils.locomotion_distance_logger(earthworm) # closure to keep locomotion distance
     for step in range(steps):
@@ -61,7 +61,7 @@ def run_earthworm(actor, save_dir: str, steps: int, disable_list=None, broken_va
         sim_somite_phases_file.append_data(step, *utils.mod2pi(phases[:config.oscillators]))
         sim_frictions_file.append_data(step, *frictions)
         sim_tension_file.append_data(step, *tensions)
-        sim_somite_actions_file.append_data(step, *feedbacks[:config.oscillators])
+        sim_somite_actions_file.append_data(step, *action)
 
     earthworm.save_simulation("{}/render.json".format(save_dir))
 
